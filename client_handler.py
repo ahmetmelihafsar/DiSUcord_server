@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import socket
+import re
 import disucord_server
 import server_gui
 
@@ -33,26 +34,52 @@ class ClientHandler:
         finally:
             self.disconnect_client()
 
+
     def process_message(self, message: str):
         """
         Process incoming messages from the client.
+        Special commands are separated by '\\x' and end with '\\e'.
+        Double backslash '\\' is used to indicate a single backslash in data parts.
         """
-        if message.startswith("SETNAME"):
-            self.username = message.removeprefix("SETNAME ")
+
+        # Placeholder for a single backslash (choose a string that won't naturally occur in your messages)
+        single_backslash_placeholder = "<SINGLE_BACKSLASH>"
+
+        # Replace double backslashes with the placeholder
+        message = message.replace('\\\\', single_backslash_placeholder)
+
+        # Check for the end of the message
+        if '\\e' in message:
+            message = message.split('\\e')[0]
+
+        # Split the message by the special separator '\x'
+        parts = re.split(r'\\x+', message)
+
+        # Process each part to replace the placeholder with a single backslash
+        parts = [part.replace(single_backslash_placeholder, '\\') for part in parts]
+
+        # Extract the main command and its parameters
+        main_command = parts[0]
+        parameters = parts[1:]
+
+        # Process the main command
+        if main_command == "SETNAME":
+            self.username = parameters[0]
             is_added = self.server.add_client(self.username, self)
             if not is_added:
                 self.disconnect_client()
                 return
-        elif message.startswith("SUBSCRIBE"):
-            channel = message.removeprefix("SUBSCRIBE ")
+        elif main_command == "SUBSCRIBE":
+            channel = parameters[0]
             self.server.subscribe_client_to_channel(self.username, channel)
-        elif message.startswith("UNSUBSCRIBE"):
-            channel = message.removeprefix("UNSUBSCRIBE ")
+        elif main_command == "UNSUBSCRIBE":
+            channel = parameters[0]
             self.server.unsubscribe_client_from_channel(self.username, channel)
-        elif message.startswith("MESSAGE"):
-            channel, content = message.split(" ", 2)[1:]
+        elif main_command == "MESSAGE":
+            channel, content = parameters
             self.server.broadcast_message(channel, self.username, content)
-        # Add other message processing as needed
+        else:
+            print(f"Unknown command: {main_command}")
 
     def send_message(self, message: str):
         """

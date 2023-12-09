@@ -91,3 +91,6 @@ class Server:
                 if username in self.clients:
                     prefix = f"[{channel}] {sender_username}: "
                     self.clients[username].send_message(prefix + message)
+
+                # Update the GUI
+                self.gui.append_server_log(prefix + message)

@@ -22,7 +22,6 @@ def start_server(host, port, server, gui):
 
 
 if __name__ == "__main__":
-    # Assuming you have a method in ServerGUI to get server details
     root = Tk()
     server_gui = ServerGUI(root)
     host, port = server_gui.get_server_details()
