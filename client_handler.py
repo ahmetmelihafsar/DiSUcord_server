@@ -3,16 +3,14 @@ from __future__ import annotations
 
 import socket
 import re
-import disucord_server
-import server_gui
 
 
 class ClientHandler:
     def __init__(self, client_socket: socket.socket, client_address, server, gui):
         self.client_socket = client_socket
         self.client_address = client_address
-        self.server: disucord_server.Server = server
-        self.gui: server_gui.ServerGUI = gui
+        self.server: Server = server
+        self.gui: ServerGUI = gui
         self.username = ""
         self.running = True
 
@@ -22,6 +20,8 @@ class ClientHandler:
         """
         try:
             while self.running:
+                self.running = self.gui.running.get()
+                print(f"Waiting for a message")
                 message = self.client_socket.recv(1024).decode("utf-8")
                 if message:
                     print(f"Received message from {self.username}: {message}")
@@ -34,7 +34,6 @@ class ClientHandler:
         finally:
             self.disconnect_client()
 
-
     def process_message(self, message: str):
         """
         Process incoming messages from the client.
@@ -46,17 +45,17 @@ class ClientHandler:
         single_backslash_placeholder = "<SINGLE_BACKSLASH>"
 
         # Replace double backslashes with the placeholder
-        message = message.replace('\\\\', single_backslash_placeholder)
+        message = message.replace("\\\\", single_backslash_placeholder)
 
         # Check for the end of the message
-        if '\\e' in message:
-            message = message.split('\\e')[0]
+        if "\\e" in message:
+            message = message.split("\\e")[0]
 
         # Split the message by the special separator '\x'
-        parts = re.split(r'\\x+', message)
+        parts = re.split(r"\\x+", message)
 
         # Process each part to replace the placeholder with a single backslash
-        parts = [part.replace(single_backslash_placeholder, '\\') for part in parts]
+        parts = [part.replace(single_backslash_placeholder, "\\") for part in parts]
 
         # Extract the main command and its parameters
         main_command = parts[0]
@@ -98,3 +97,7 @@ class ClientHandler:
         self.server.remove_client(self.username)
         self.client_socket.close()
         print(f"Client {self.username} disconnected")
+
+
+from server_gui import ServerGUI
+from disucord_server import Server
