@@ -2,14 +2,21 @@
 
 from __future__ import annotations
 import client_handler
-import server_gui
+from server_gui import ServerGUI
+from client_handler import ClientHandler
+import socket
+import time
+
+# import killable threads and normal threads 
+from kthread import KThread # type: ignore
+import threading
 
 # import dict
 from typing import Dict
 
 
 class Server:
-    def __init__(self, gui: server_gui.ServerGUI):
+    def __init__(self, gui: ServerGUI):
         self.clients: Dict[
             str, client_handler.ClientHandler
         ] = {}  # Dictionary to hold client username and ClientHandler object
@@ -18,6 +25,9 @@ class Server:
             "SPS 101": set(),
         }  # Channel subscribers
         self.gui = gui
+
+        # run the controller
+        threading.Thread(target=self.server_thread_controller, daemon=True).start()
 
     def add_client(
         self, username, client_handler: client_handler.ClientHandler
@@ -94,3 +104,71 @@ class Server:
 
                 # Update the GUI
                 self.gui.append_server_log(prefix + message)
+
+    def _start_server(self, host, port, server, gui: ServerGUI):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+            self.server_socket = server_socket
+            server_socket.bind((host, port))
+            server_socket.listen()
+            print(f"Server listening on {host}:{port}")
+
+            while True:
+                client_socket, client_address = server_socket.accept()
+                client_handler = ClientHandler(
+                    client_socket, client_address, server, gui
+                )
+                threading.Thread(target=client_handler.handle_client).start()
+
+    def server_thread_controller(self):
+        """
+        This function runs in a thread. Periodically checks for whether
+        the gui.running is true or not. If true, runs the start_server
+        in a seperate killable thread. If not, checks if the seperate thread
+        is running and kills it.
+        """
+        while True:
+            if self.gui.running.get():
+                if not hasattr(self, "server_thread"):
+                    self.server_thread = KThread(
+                        target=self._start_server,
+                        args=(
+                            self.gui.host_entry.get(),
+                            int(self.gui.port_entry.get()),
+                            self,
+                            self.gui,
+                        ),
+                        daemon=True,
+                    )
+                    self.server_thread.start()
+            else:
+                if hasattr(self, "server_thread"):
+                    if self.server_thread.is_alive():
+                        self.server_thread.kill()
+                        del self.server_thread
+
+                        # close the connections
+                        for client in self.clients:
+                            self.clients[client].disconnect_client()
+
+                        # close the socket
+                        self.server_socket.close()
+
+                        # clean the lists
+                        self.clients = {}
+                        self.channels = {
+                            "IF 100": set(),
+                            "SPS 101": set(),
+                        }
+
+                        # Update the GUI
+                        self.gui.update_clients_list(
+                            [username for username in self.clients]
+                        )
+                        # Update the subscribers in the GUI
+                        for channel in self.channels:
+                            self.gui.update_channel_subscribers(
+                                channel,
+                                [username for username in self.channels[channel]],
+                            )
+                            
+            time.sleep(0.1)
