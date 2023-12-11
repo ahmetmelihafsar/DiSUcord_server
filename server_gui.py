@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import tkinter as tk
+import socket
+import threading
 from tkinter import scrolledtext
 
 
@@ -9,33 +11,60 @@ class ServerGUI:
         self.master = master
         master.title("DiSUcord Server")
 
-        # Server Log
-        self.log = scrolledtext.ScrolledText(master, height=10, width=70)
-        self.log.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+        # Server Log Frame
+        self.log_frame = tk.Frame(master)
+        self.log_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+        self.log = scrolledtext.ScrolledText(self.log_frame, height=10, width=70)
+        self.log.pack()
 
-        # Connected Clients
-        self.clients_list = scrolledtext.ScrolledText(master, height=10, width=35)
-        self.clients_list.grid(row=1, column=0, padx=10, pady=10)
-        self.clients_list.insert(tk.END, "Connected Clients:\n")
+        # Connected Clients Frame
+        self.clients_frame = tk.Frame(master)
+        self.clients_frame.grid(row=1, column=0, padx=10, pady=10)
+        self.clients_list = scrolledtext.ScrolledText(
+            self.clients_frame, height=10, width=35
+        )
+        self.clients_list.pack()
 
-        # IF 100 Channel Subscribers
-        self.if_100_list = scrolledtext.ScrolledText(master, height=10, width=35)
-        self.if_100_list.grid(row=1, column=1, padx=10, pady=10)
-        self.if_100_list.insert(tk.END, "IF 100 Subscribers:\n")
+        # IF 100 Channel Subscribers Frame
+        self.if_100_frame = tk.Frame(master)
+        self.if_100_frame.grid(row=1, column=1, padx=10, pady=10)
+        self.if_100_list = scrolledtext.ScrolledText(
+            self.if_100_frame, height=10, width=35
+        )
+        self.if_100_list.pack()
 
-        # SPS 101 Channel Subscribers
-        self.sps_101_list = scrolledtext.ScrolledText(master, height=10, width=35)
-        self.sps_101_list.grid(row=2, column=0, padx=10, pady=10)
-        self.sps_101_list.insert(tk.END, "SPS 101 Subscribers:\n")
+        # SPS 101 Channel Subscribers Frame
+        self.sps_101_frame = tk.Frame(master)
+        self.sps_101_frame.grid(row=2, column=0, padx=10, pady=10)
+        self.sps_101_list = scrolledtext.ScrolledText(
+            self.sps_101_frame, height=10, width=35
+        )
+        self.sps_101_list.pack()
 
-        # Entry for server host and port
-        self.host_entry = tk.Entry(master, width=15)
-        self.host_entry.grid(row=3, column=0, padx=5)
+        # Entry for server host and port Frame
+        self.entry_frame = tk.Frame(master)
+        self.entry_frame.grid(row=3, column=0, columnspan=2, padx=5)
+        self.host_entry = tk.Entry(self.entry_frame, width=15)
+        # insert a default value
         self.host_entry.insert(0, "127.0.0.1")
 
-        self.port_entry = tk.Entry(master, width=5)
-        self.port_entry.grid(row=3, column=1, padx=5)
+        self.host_entry.pack(side=tk.LEFT)
+        self.port_entry = tk.Entry(self.entry_frame, width=5)
+        self.port_entry.pack(side=tk.LEFT)
+        # insert a default value
         self.port_entry.insert(0, "8080")
+
+        # Start Button
+        self.start_button = tk.Button(master, text="Start", command=self.start_server)
+        self.start_button.grid(row=4, column=0, padx=10, pady=10)
+
+        # Stop Button
+        self.stop_button = tk.Button(master, text="Stop", command=self.stop_server)
+        self.stop_button.grid(row=4, column=1, padx=10, pady=10)
+
+        # set running to false, but in tkinter variable
+        self.running = tk.BooleanVar()
+        self.running.set(False)
 
     def get_server_details(self):
         """
@@ -49,7 +78,6 @@ class ServerGUI:
         """
         self.log.insert(tk.END, message + "\n")
         self.log.see(tk.END)  # Auto-scroll to the bottom
-
 
     def update_clients_list(self, clients):
         """
@@ -77,3 +105,36 @@ class ServerGUI:
         else:
             # Popup error
             pass
+
+    def stop_server(self):
+        self.running.set(False)
+
+        # set button disabled
+        self.stop_button.config(state=tk.DISABLED)
+        self.start_button.config(state=tk.NORMAL)
+
+        self.append_server_log("Server stopped.")
+
+    def start_server(self):
+        self.running.set(True)
+
+        # set buttons
+        self.stop_button.config(state=tk.NORMAL)
+        self.start_button.config(state=tk.DISABLED)
+
+        self.append_server_log("Server started.")
+
+
+def start_server(host, port, server, gui: ServerGUI):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+        server_socket.bind((host, port))
+        server_socket.listen()
+        print(f"Server listening on {host}:{port}")
+
+        while True:
+            client_socket, client_address = server_socket.accept()
+            client_handler = ClientHandler(client_socket, client_address, server, gui)
+            threading.Thread(target=client_handler.handle_client).start()
+
+
+from client_handler import ClientHandler
