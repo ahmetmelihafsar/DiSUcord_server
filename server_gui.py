@@ -16,6 +16,9 @@ class ServerGUI:
         self.log_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
         self.log = scrolledtext.ScrolledText(self.log_frame, height=10, width=70)
         self.log.pack()
+        self.log.bind(
+            "<Key>", lambda e: "break"
+        )  # this is done to ensure input from user is disabled
 
         # Connected Clients Frame
         self.clients_frame = tk.Frame(master)
@@ -24,6 +27,9 @@ class ServerGUI:
             self.clients_frame, height=10, width=35
         )
         self.clients_list.pack()
+        self.clients_list.bind(
+            "<Key>", lambda e: "break"
+        )  # this is done to ensure input from user is disabled
 
         # IF 100 Channel Subscribers Frame
         self.if_100_frame = tk.Frame(master)
@@ -32,6 +38,9 @@ class ServerGUI:
             self.if_100_frame, height=10, width=35
         )
         self.if_100_list.pack()
+        self.if_100_list.bind(
+            "<Key>", lambda e: "break"
+        )  # this is done to ensure input from user is disabled
 
         # SPS 101 Channel Subscribers Frame
         self.sps_101_frame = tk.Frame(master)
@@ -40,6 +49,9 @@ class ServerGUI:
             self.sps_101_frame, height=10, width=35
         )
         self.sps_101_list.pack()
+        self.sps_101_list.bind(
+            "<Key>", lambda e: "break"
+        )  # this is done to ensure input from user is disabled
 
         # Entry for server host and port Frame
         self.entry_frame = tk.Frame(master)
