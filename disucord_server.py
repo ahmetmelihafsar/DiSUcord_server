@@ -1,14 +1,12 @@
 # server.py
 
 from __future__ import annotations
-import client_handler
-from server_gui import ServerGUI
-from client_handler import ClientHandler
+
 import socket
 import time
 
-# import killable threads and normal threads 
-from kthread import KThread # type: ignore
+# import killable threads and normal threads
+from kthread import KThread  # type: ignore
 import threading
 
 # import dict
@@ -18,7 +16,7 @@ from typing import Dict
 class Server:
     def __init__(self, gui: ServerGUI):
         self.clients: Dict[
-            str, client_handler.ClientHandler
+            str, ClientHandler
         ] = {}  # Dictionary to hold client username and ClientHandler object
         self.channels: Dict[str, set[str]] = {
             "IF 100": set(),
@@ -29,9 +27,7 @@ class Server:
         # run the controller
         threading.Thread(target=self.server_thread_controller, daemon=True).start()
 
-    def add_client(
-        self, username, client_handler: client_handler.ClientHandler
-    ) -> bool:
+    def add_client(self, username, client_handler: ClientHandler) -> bool:
         """
         Add a new client to the server.
         """
@@ -170,5 +166,9 @@ class Server:
                                 channel,
                                 [username for username in self.channels[channel]],
                             )
-                            
+
             time.sleep(0.1)
+
+
+from server_gui import ServerGUI
+from client_handler import ClientHandler
