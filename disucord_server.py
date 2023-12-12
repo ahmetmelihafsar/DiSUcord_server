@@ -142,8 +142,9 @@ class Server:
                         self.server_thread.kill()
                         del self.server_thread
 
-                        # close the connections
-                        for client in self.clients:
+                        # close the connections with while loop
+                        while self.clients:
+                            client = next(iter(self.clients))
                             self.clients[client].disconnect_client()
 
                         # close the socket
