@@ -135,18 +135,3 @@ class ServerGUI:
         self.start_button.config(state=tk.DISABLED)
 
         self.append_server_log("Server started.")
-
-
-def start_server(host, port, server, gui: ServerGUI):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-        server_socket.bind((host, port))
-        server_socket.listen()
-        print(f"Server listening on {host}:{port}")
-
-        while True:
-            client_socket, client_address = server_socket.accept()
-            client_handler = ClientHandler(client_socket, client_address, server, gui)
-            threading.Thread(target=client_handler.handle_client).start()
-
-
-from client_handler import ClientHandler
