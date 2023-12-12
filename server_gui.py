@@ -7,7 +7,8 @@ from tkinter import scrolledtext
 
 
 class ServerGUI:
-    def __init__(self, master):
+    def __init__(self, master: tk.Tk):
+        self.ui_lock = threading.Lock()  # Mutex for UI updates
         self.master = master
         master.title("DiSUcord Server")
 
@@ -93,35 +94,32 @@ class ServerGUI:
         """
         Update the server log with a new message.
         """
-        self.log.insert(tk.END, message + "\n")
-        self.log.see(tk.END)  # Auto-scroll to the bottom
+        with self.ui_lock:  # Acquire the lock
+            self.log.insert(tk.END, message + "\n")
+            self.log.see(tk.END)  # Auto-scroll to the bottom
 
     def update_clients_list(self, clients):
         """
         Update the list of connected clients.
         """
-        self.clients_list.delete(1.0, tk.END)
-        self.clients_list.insert(tk.END, "Connected Clients:\n")
-        for client in clients:
-            self.clients_list.insert(tk.END, client + "\n")
+        with self.ui_lock:  # Acquire the lock
+            self.clients_list.delete(1.0, tk.END)
+            for client in clients:
+                self.clients_list.insert(tk.END, client + "\n")
 
     def update_channel_subscribers(self, channel, subscribers):
         """
         Update the subscriber list for a specific channel.
         """
-        if channel == "IF 100":
-            self.if_100_list.delete(1.0, tk.END)
-            self.if_100_list.insert(tk.END, "IF 100 Subscribers:\n")
-            for subscriber in subscribers:
-                self.if_100_list.insert(tk.END, subscriber + "\n")
-        elif channel == "SPS 101":
-            self.sps_101_list.delete(1.0, tk.END)
-            self.sps_101_list.insert(tk.END, "SPS 101 Subscribers:\n")
-            for subscriber in subscribers:
-                self.sps_101_list.insert(tk.END, subscriber + "\n")
-        else:
-            # Popup error
-            pass
+        with self.ui_lock:  # Acquire the lock
+            if channel == "IF 100":
+                self.if_100_list.delete(1.0, tk.END)
+                for subscriber in subscribers:
+                    self.if_100_list.insert(tk.END, subscriber + "\n")
+            elif channel == "SPS 101":
+                self.sps_101_list.delete(1.0, tk.END)
+                for subscriber in subscribers:
+                    self.sps_101_list.insert(tk.END, subscriber + "\n")
 
     def stop_server(self):
         self.running.set(False)
