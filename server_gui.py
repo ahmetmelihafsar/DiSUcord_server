@@ -12,8 +12,9 @@ class ServerGUI:
         master.title("DiSUcord Server")
 
         # Server Log Frame
-        self.log_frame = tk.Frame(master)
+        self.log_frame = tk.LabelFrame(master, text="Server Log")
         self.log_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+
         self.log = scrolledtext.ScrolledText(self.log_frame, height=10, width=70)
         self.log.pack()
         self.log.bind(
@@ -21,8 +22,9 @@ class ServerGUI:
         )  # this is done to ensure input from user is disabled
 
         # Connected Clients Frame
-        self.clients_frame = tk.Frame(master)
+        self.clients_frame = tk.LabelFrame(master, text="Connected Clients")
         self.clients_frame.grid(row=1, column=0, padx=10, pady=10)
+
         self.clients_list = scrolledtext.ScrolledText(
             self.clients_frame, height=10, width=35
         )
@@ -32,8 +34,9 @@ class ServerGUI:
         )  # this is done to ensure input from user is disabled
 
         # IF 100 Channel Subscribers Frame
-        self.if_100_frame = tk.Frame(master)
+        self.if_100_frame = tk.LabelFrame(master, text="IF 100 Channel Subscribers")
         self.if_100_frame.grid(row=1, column=1, padx=10, pady=10)
+
         self.if_100_list = scrolledtext.ScrolledText(
             self.if_100_frame, height=10, width=35
         )
@@ -43,8 +46,9 @@ class ServerGUI:
         )  # this is done to ensure input from user is disabled
 
         # SPS 101 Channel Subscribers Frame
-        self.sps_101_frame = tk.Frame(master)
+        self.sps_101_frame = tk.LabelFrame(master, text="SPS 101 Channel Subscribers")
         self.sps_101_frame.grid(row=2, column=0, padx=10, pady=10)
+
         self.sps_101_list = scrolledtext.ScrolledText(
             self.sps_101_frame, height=10, width=35
         )
@@ -54,8 +58,9 @@ class ServerGUI:
         )  # this is done to ensure input from user is disabled
 
         # Entry for server host and port Frame
-        self.entry_frame = tk.Frame(master)
+        self.entry_frame = tk.LabelFrame(master, text="Server Host and Port")
         self.entry_frame.grid(row=3, column=0, columnspan=2, padx=5)
+
         self.host_entry = tk.Entry(self.entry_frame, width=15)
         # insert a default value
         self.host_entry.insert(0, "127.0.0.1")
