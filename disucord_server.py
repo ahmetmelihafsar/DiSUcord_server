@@ -24,6 +24,10 @@ class Server:
         }  # Channel subscribers
         self.gui = gui
 
+        # Adding locks for thread safety
+        self.clients_lock = threading.Lock()
+        self.channels_lock = threading.Lock()
+
         # run the controller
         threading.Thread(target=self.server_thread_controller, daemon=True).start()
 
@@ -31,11 +35,12 @@ class Server:
         """
         Add a new client to the server.
         """
-        if username in self.clients:
-            client_handler.send_message("Username already taken.")
-            return False
-        self.clients[username] = client_handler
-        client_handler.send_message("Connected successfully.")
+        with self.clients_lock:  # Acquire lock for clients dictionary
+            if username in self.clients:
+                client_handler.send_message("Username already taken.")
+                return False
+            self.clients[username] = client_handler
+            client_handler.send_message("Connected successfully.")
 
         # Update the GUI
         self.gui.update_clients_list([username for username in self.clients])
@@ -46,9 +51,11 @@ class Server:
         """
         Remove a client from the server.
         """
-        if username in self.clients:
-            del self.clients[username]
-            # Unsubscribe from channels
+        with self.clients_lock:  # Acquire lock for clients dictionary
+            if username in self.clients:
+                del self.clients[username]
+
+        with self.channels_lock:  # Acquire lock for channels dictionary
             for channel in self.channels:
                 if username in self.channels[channel]:
                     self.channels[channel].remove(username)
@@ -142,33 +149,37 @@ class Server:
                         self.server_thread.kill()
                         del self.server_thread
 
-                        # close the connections with while loop
-                        while self.clients:
-                            client = next(iter(self.clients))
-                            self.clients[client].disconnect_client()
+                        # Acquire locks before modifying shared resources
+                        with self.clients_lock:
+                            # Close the connections
+                            while self.clients:
+                                client = next(iter(self.clients))
+                                self.clients[client].disconnect_client()
+                            self.clients.clear()
 
-                        # close the socket
-                        self.server_socket.close()
-
-                        # clean the lists
-                        self.clients = {}
-                        self.channels = {
-                            "IF 100": set(),
-                            "SPS 101": set(),
-                        }
+                        with self.channels_lock:
+                            self.channels = {"IF 100": set(), "SPS 101": set()}
 
                         # Update the GUI
-                        self.gui.update_clients_list(
-                            [username for username in self.clients]
-                        )
-                        # Update the subscribers in the GUI
-                        for channel in self.channels:
-                            self.gui.update_channel_subscribers(
-                                channel,
-                                [username for username in self.channels[channel]],
-                            )
+                        self.update_gui_clients()
+                        self.update_gui_channels()
+
+                        # Close the socket
+                        self.server_socket.close()
 
             time.sleep(0.1)
+
+    def update_gui_clients(self):
+        with self.clients_lock:  # Acquire lock for reading clients dictionary
+            clients_list = [username for username in self.clients]
+        self.gui.update_clients_list(clients_list)
+
+    def update_gui_channels(self):
+        with self.channels_lock:  # Acquire lock for reading channels dictionary
+            for channel in self.channels:
+                self.gui.update_channel_subscribers(
+                    channel, [username for username in self.channels[channel]]
+                )
 
 
 from server_gui import ServerGUI
