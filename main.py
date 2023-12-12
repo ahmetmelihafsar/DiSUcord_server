@@ -8,7 +8,6 @@ from disucord_server import Server
 if __name__ == "__main__":
     root = Tk()
     server_gui = ServerGUI(root)
-    host, port = server_gui.get_server_details()
 
     server = Server(server_gui)  # Create an instance of the Server class
 
