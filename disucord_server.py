@@ -116,11 +116,16 @@ class Server:
             print(f"Server listening on {host}:{port}")
 
             while True:
+                print("Waiting for a connection")
                 client_socket, client_address = server_socket.accept()
+                print(
+                    f"Connection established with {client_address[0]}:{client_address[1]}"
+                )
                 client_handler = ClientHandler(
                     client_socket, client_address, server, gui
                 )
                 threading.Thread(target=client_handler.handle_client).start()
+                print(f"Handler thread launched")
 
     def server_thread_controller(self):
         """

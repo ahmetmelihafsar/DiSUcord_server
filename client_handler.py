@@ -66,6 +66,7 @@ class ClientHandler:
             self.username = parameters[0]
             is_added = self.server.add_client(self.username, self)
             if not is_added:
+                self.username = ""
                 self.disconnect_client()
                 return
         elif main_command == "SUBSCRIBE":
@@ -85,6 +86,7 @@ class ClientHandler:
         Send a message to the client.
         """
         try:
+            print(f"Sending message to: {self.username}: {message}")
             self.client_socket.send(message.encode("utf-8"))
         except socket.error as e:
             print(f"Error sending message to {self.username}: {e}")
