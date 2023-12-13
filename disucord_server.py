@@ -28,6 +28,9 @@ class Server:
         self.clients_lock = threading.Lock()
         self.channels_lock = threading.Lock()
 
+        # Flag to indicate whether the server is shutting down
+        self.is_shutting_down = False
+
         # run the controller
         threading.Thread(target=self.server_thread_controller, daemon=True).start()
 
@@ -111,21 +114,28 @@ class Server:
     def _start_server(self, host, port, server, gui: ServerGUI):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
             self.server_socket = server_socket
+
+            server_socket.settimeout(1)  # Set a timeout of 1 second
             server_socket.bind((host, port))
             server_socket.listen()
             print(f"Server listening on {host}:{port}")
 
-            while True:
-                print("Waiting for a connection")
-                client_socket, client_address = server_socket.accept()
-                print(
-                    f"Connection established with {client_address[0]}:{client_address[1]}"
-                )
-                client_handler = ClientHandler(
-                    client_socket, client_address, server, gui
-                )
-                threading.Thread(target=client_handler.handle_client).start()
-                print(f"Handler thread launched")
+            while not self.is_shutting_down:
+                try:
+                    print("Waiting for a connection")
+                    client_socket, client_address = server_socket.accept()
+                    print(
+                        f"Connection established with {client_address[0]}:{client_address[1]}"
+                    )
+                    client_handler = ClientHandler(
+                        client_socket, client_address, server, gui
+                    )
+                    threading.Thread(target=client_handler.handle_client).start()
+                    print(f"Handler thread launched")
+                except socket.timeout:
+                    continue
+                except socket.error as e:
+                    print(f"Error accepting connection: {e}")
 
     def server_thread_controller(self):
         """
@@ -147,23 +157,40 @@ class Server:
                         ),
                         daemon=True,
                     )
+                    print(f"Killable server thread is created, will run.")
                     self.server_thread.start()
             else:
                 if hasattr(self, "server_thread"):
+                    print(f"Server thread exists, will kill if alive")
                     if self.server_thread.is_alive():
+                        print(f"Server thread is alive, will kill")
                         self.server_thread.kill()
                         del self.server_thread
+                        print(f"Server thread killed and deleted")
 
                         # Acquire locks before modifying shared resources
+                        print(f"Acquiring locks to modify shared resources")
+                        print(
+                            f"Setting shutdown flag and acquiring locks to modify shared resources"
+                        )
+                        self.is_shutting_down = True
+
+                        # Create a list of clients to disconnect
+                        clients_to_disconnect = []
                         with self.clients_lock:
-                            # Close the connections
-                            while self.clients:
-                                client = next(iter(self.clients))
-                                self.clients[client].disconnect_client()
+                            clients_to_disconnect = list(self.clients.keys())
+
+                        # Disconnect each client
+                        for client in clients_to_disconnect:
+                            self.clients[client].disconnect_client()
+
+                        with self.clients_lock:
                             self.clients.clear()
 
                         with self.channels_lock:
                             self.channels = {"IF 100": set(), "SPS 101": set()}
+
+                        print(f"We will update the GUI with cleaning the slate")
 
                         # Update the GUI
                         self.update_gui_clients()
@@ -171,6 +198,9 @@ class Server:
 
                         # Close the socket
                         self.server_socket.close()
+
+                        # Finished shutting down, reset the flag
+                        self.is_shutting_down = False
 
             time.sleep(0.1)
 
