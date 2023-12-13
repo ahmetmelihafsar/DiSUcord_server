@@ -38,7 +38,7 @@ class ClientHandler:
         """
         Process incoming messages from the client.
         Special commands are separated by '\\x' and end with '\\e'.
-        Double backslash '\\' is used to indicate a single backslash in data parts.
+        Double backslash '\\\\' is used to indicate a single backslash in data parts.
         """
 
         # Placeholder for a single backslash (choose a string that won't naturally occur in your messages)
@@ -97,6 +97,9 @@ class ClientHandler:
         """
         self.running = False
         self.server.remove_client(self.username)
+        # before closing, send "\q" for quit
+        self.send_message("\\q")
+
         self.client_socket.close()
         print(f"Client {self.username} disconnected")
 
