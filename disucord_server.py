@@ -1,98 +1,89 @@
 # server.py
 
+# Necessary imports
 from __future__ import annotations
-
 import socket
 import time
 
 # import killable threads and normal threads
 from kthread import KThread  # type: ignore
 import threading
-
-# import dict
 from typing import Dict
-
 from constants import *
 
 
 class Server:
     def __init__(self, gui: ServerGUI):
-        self.clients: Dict[
-            str, ClientHandler
-        ] = {}  # Dictionary to hold client username and ClientHandler object
-        self.channels: Dict[str, set[str]] = {
-            "IF 100": set(),
-            "SPS 101": set(),
-        }  # Channel subscribers
-        self.gui = gui
+        # Initialize clients and channels dictionaries for managing connections and subscriptions
+        self.clients: Dict[str, ClientHandler] = {}
+        self.channels: Dict[str, set[str]] = {"IF 100": set(), "SPS 101": set()}
+        self.gui = gui  # GUI reference for server
 
-        # Adding locks for thread safety
+        # Thread locks for ensuring thread safety
         self.clients_lock = threading.Lock()
         self.channels_lock = threading.Lock()
 
-        # Flag to indicate whether the server is shutting down
+        # Flag for server shutdown status
         self.is_shutting_down = False
 
-        # run the controller
+        # Start the server control thread
         threading.Thread(target=self.server_thread_controller, daemon=True).start()
 
     def add_client(self, username, client_handler: ClientHandler) -> bool:
         """
-        Add a new client to the server.
+        Add a new client to the server. Ensures unique usernames.
         """
-        with self.clients_lock:  # Acquire lock for clients dictionary
+        with self.clients_lock:  # Ensure thread-safe access to clients dictionary
             if username in self.clients:
                 client_handler.send_message(
                     f"[{SERVER_ALIAS}]: Username already taken."
                 )
+                self.gui.append_server_log(
+                    f"[{SERVER_ALIAS}]: Connection attempt with taken username `{username}` from {client_handler.client_address[0]}:{client_handler.client_address[1]}"
+                )
                 return False
             self.clients[username] = client_handler
             client_handler.send_message(f"[{SERVER_ALIAS}]: Connected successfully.")
+            self.gui.append_server_log(
+                f"[{SERVER_ALIAS}]: New connection from {client_handler.client_address[0]}:{client_handler.client_address[1]} as `{username}`"
+            )
 
-        # Update the GUI
-        self.gui.update_clients_list([username for username in self.clients])
-
+        self.update_gui_clients()  # Update GUI with new client list
         return True
 
     def remove_client(self, username: str):
         """
-        Remove a client from the server.
+        Remove a client from the server and all channels they are subscribed to.
         """
-        with self.clients_lock:  # Acquire lock for clients dictionary
+        with self.clients_lock:  # Handle client removal
             if username in self.clients:
                 del self.clients[username]
 
-        with self.channels_lock:  # Acquire lock for channels dictionary
+        with self.channels_lock:  # Update channel subscriptions
             for channel in self.channels:
                 if username in self.channels[channel]:
                     self.channels[channel].remove(username)
 
-            # Update the GUI
-            self.gui.update_clients_list([username for username in self.clients])
-            # Update the subscribers in the GUI
-            for channel in self.channels:
-                self.gui.update_channel_subscribers(
-                    channel, [username for username in self.channels[channel]]
-                )
+        self.gui.append_server_log(f"[{SERVER_ALIAS}]: `{username}` disconnected.")
+        self.update_gui_clients_and_channels()  # Update GUI lists
 
     def subscribe_client_to_channel(self, username, channel):
         """
-        Subscribe a client to a channel.
+        Subscribe a client to a specific channel.
         """
         if channel in self.channels and username in self.clients:
             self.channels[channel].add(username)
             self.clients[username].send_message(
                 f"[{SERVER_ALIAS}]: Subscribed to {channel}"
             )
-
-            # Update the GUI
-            self.gui.update_channel_subscribers(
-                channel, [username for username in self.channels[channel]]
+            self.gui.append_server_log(
+                f"[{SERVER_ALIAS}]: `{username}` subscribed to {channel}"
             )
+            self.update_gui_channels()  # Update GUI channel subscribers list
 
     def unsubscribe_client_from_channel(self, username, channel):
         """
-        Unsubscribe a client from a channel.
+        Unsubscribe a client from a specific channel.
         """
         if channel in self.channels and username in self.clients:
             if username in self.channels[channel]:
@@ -100,11 +91,10 @@ class Server:
                 self.clients[username].send_message(
                     f"[{SERVER_ALIAS}]: Unsubscribed from {channel}"
                 )
-
-            # Update the GUI
-            self.gui.update_channel_subscribers(
-                channel, [username for username in self.channels[channel]]
-            )
+                self.gui.append_server_log(
+                    f"[{SERVER_ALIAS}]: `{username}` unsubscribed from {channel}"
+                )
+                self.update_gui_channels()  # Update GUI channel subscribers list
 
     def broadcast_message(self, channel, sender_username, message):
         """
@@ -115,42 +105,37 @@ class Server:
                 if username in self.clients:
                     prefix = f"[{channel}] {sender_username}: "
                     self.clients[username].send_message(prefix + message)
-
-                # Update the GUI
-                self.gui.append_server_log(prefix + message)
+                    self.gui.append_server_log(prefix + message)  # Log the message
 
     def _start_server(self, host, port, server, gui: ServerGUI):
+        """
+        Function to start the server socket and listen for client connections.
+        """
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
             self.server_socket = server_socket
-
-            server_socket.settimeout(1)  # Set a timeout of 1 second
+            server_socket.settimeout(1)  # Timeout for non-blocking accept call
             server_socket.bind((host, port))
             server_socket.listen()
-            print(f"Server listening on {host}:{port}")
+            self.gui.append_server_log(f"Server listening on {host}:{port}")
 
             while not self.is_shutting_down:
                 try:
-                    print("Waiting for a connection")
                     client_socket, client_address = server_socket.accept()
-                    print(
-                        f"Connection established with {client_address[0]}:{client_address[1]}"
-                    )
                     client_handler = ClientHandler(
                         client_socket, client_address, server, gui
                     )
                     threading.Thread(target=client_handler.handle_client).start()
-                    print(f"Handler thread launched")
+                    self.gui.append_server_log(
+                        f"New client handler thread started for {client_address}"
+                    )
                 except socket.timeout:
-                    continue
+                    continue  # Skip iteration on timeout
                 except socket.error as e:
-                    print(f"Error accepting connection: {e}")
+                    self.gui.append_server_log(f"Error accepting connection: {e}")
 
     def server_thread_controller(self):
         """
-        This function runs in a thread. Periodically checks for whether
-        the gui.running is true or not. If true, runs the start_server
-        in a seperate killable thread. If not, checks if the seperate thread
-        is running and kills it.
+        Controller thread for managing server start and shutdown.
         """
         while True:
             if self.gui.running.get():
@@ -165,8 +150,8 @@ class Server:
                         ),
                         daemon=True,
                     )
-                    print(f"Killable server thread is created, will run.")
                     self.server_thread.start()
+                    self.gui.append_server_log("Server thread started")
             else:
                 if hasattr(self, "server_thread"):
                     print(f"Server thread exists, will kill if alive")
@@ -212,13 +197,26 @@ class Server:
 
             time.sleep(0.1)
 
+    def update_gui_clients_and_channels(self):
+        """
+        Update GUI with current clients and channel subscribers.
+        """
+        self.update_gui_clients()
+        self.update_gui_channels()
+
     def update_gui_clients(self):
-        with self.clients_lock:  # Acquire lock for reading clients dictionary
+        """
+        Update the GUI with the current list of clients.
+        """
+        with self.clients_lock:
             clients_list = [username for username in self.clients]
         self.gui.update_clients_list(clients_list)
 
     def update_gui_channels(self):
-        with self.channels_lock:  # Acquire lock for reading channels dictionary
+        """
+        Update the GUI with the current list of channel subscribers.
+        """
+        with self.channels_lock:
             for channel in self.channels:
                 self.gui.update_channel_subscribers(
                     channel, [username for username in self.channels[channel]]
