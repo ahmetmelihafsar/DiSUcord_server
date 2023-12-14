@@ -1,0 +1,2 @@
+SERVER_NAME = "DiSUcord Server"
+SERVER_ALIAS = "SYSTEM"
