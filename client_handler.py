@@ -78,6 +78,8 @@ class ClientHandler:
         elif main_command == "MESSAGE":
             channel, content = parameters
             self.server.broadcast_message(channel, self.username, content)
+        elif main_command == "QUIT":
+            self.disconnect_client()
         else:
             print(f"Unknown command: {main_command}")
 
