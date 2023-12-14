@@ -12,6 +12,8 @@ import threading
 # import dict
 from typing import Dict
 
+from constants import *
+
 
 class Server:
     def __init__(self, gui: ServerGUI):
@@ -40,10 +42,12 @@ class Server:
         """
         with self.clients_lock:  # Acquire lock for clients dictionary
             if username in self.clients:
-                client_handler.send_message("Username already taken.")
+                client_handler.send_message(
+                    f"[{SERVER_ALIAS}]: Username already taken."
+                )
                 return False
             self.clients[username] = client_handler
-            client_handler.send_message("Connected successfully.")
+            client_handler.send_message(f"[{SERVER_ALIAS}]: Connected successfully.")
 
         # Update the GUI
         self.gui.update_clients_list([username for username in self.clients])
@@ -77,7 +81,9 @@ class Server:
         """
         if channel in self.channels and username in self.clients:
             self.channels[channel].add(username)
-            self.clients[username].send_message(f"Subscribed to {channel}")
+            self.clients[username].send_message(
+                f"[{SERVER_ALIAS}]: Subscribed to {channel}"
+            )
 
             # Update the GUI
             self.gui.update_channel_subscribers(
@@ -91,7 +97,9 @@ class Server:
         if channel in self.channels and username in self.clients:
             if username in self.channels[channel]:
                 self.channels[channel].remove(username)
-                self.clients[username].send_message(f"Unsubscribed from {channel}")
+                self.clients[username].send_message(
+                    f"[{SERVER_ALIAS}]: Unsubscribed from {channel}"
+                )
 
             # Update the GUI
             self.gui.update_channel_subscribers(
