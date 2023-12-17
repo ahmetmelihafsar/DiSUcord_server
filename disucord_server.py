@@ -98,14 +98,16 @@ class Server:
 
     def broadcast_message(self, channel, sender_username, message):
         """
-        Broadcast a message to all subscribers of a channel.
+        Broadcast a message to all subscribers of a channel. 
+        Sender must be a member of that channel.
         """
-        if channel in self.channels:
-            for username in self.channels[channel]:
-                if username in self.clients:
-                    prefix = f"[{channel}] {sender_username}: "
-                    self.clients[username].send_message(prefix + message)
-                    self.gui.append_server_log(prefix + message)  # Log the message
+        if sender_username in self.channels[channel]:
+            if channel in self.channels:
+                for username in self.channels[channel]:
+                    if username in self.clients:
+                        prefix = f"[{channel}] {sender_username}: "
+                        self.clients[username].send_message(prefix + message)
+                        self.gui.append_server_log(prefix + message)  # Log the message
 
     def _start_server(self, host, port, server, gui: ServerGUI):
         """
