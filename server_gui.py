@@ -64,7 +64,7 @@ class ServerGUI:
 
         self.host_entry = tk.Entry(self.entry_frame, width=15)
         # insert a default value
-        self.host_entry.insert(0, "127.0.0.1")
+        self.host_entry.insert(0, "0.0.0.0")
 
         self.host_entry.pack(side=tk.LEFT)
         self.port_entry = tk.Entry(self.entry_frame, width=5)
