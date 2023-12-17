@@ -116,6 +116,11 @@ class Server:
             if channel in self.channels:
                 for username in self.channels[channel]:
                     if username in self.clients:
+                        if message == "":
+                            self.gui.append_server_log(
+                                f"[{SERVER_ALIAS}]: Message '{message}' not sent since invalid"
+                            )
+                            return
                         prefix = f"[{channel}] {sender_username}: "
                         self.clients[username].send_message(prefix + message)
                         self.gui.append_server_log(prefix + message)  # Log the message
