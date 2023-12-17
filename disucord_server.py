@@ -58,13 +58,14 @@ class Server:
         with self.clients_lock:  # Handle client removal
             if username in self.clients:
                 del self.clients[username]
+                self.gui.append_server_log(f"[{SERVER_ALIAS}]: `{username}` disconnected.")
 
         with self.channels_lock:  # Update channel subscriptions
             for channel in self.channels:
                 if username in self.channels[channel]:
                     self.channels[channel].remove(username)
-
-        self.gui.append_server_log(f"[{SERVER_ALIAS}]: `{username}` disconnected.")
+                    self.gui.append_server_log(f"[{SERVER_ALIAS}]: `{username}` unsubscribed from `{channel}`.")
+   
         self.update_gui_clients_and_channels()  # Update GUI lists
 
     def subscribe_client_to_channel(self, username, channel):
