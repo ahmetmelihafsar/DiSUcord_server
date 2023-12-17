@@ -42,6 +42,12 @@ class Server:
                     f"[{SERVER_ALIAS}]: Connection attempt with taken username `{username}` from {client_handler.client_address[0]}:{client_handler.client_address[1]}"
                 )
                 return False
+            if username == "":
+                client_handler.send_message(f"[{SERVER_ALIAS}]: Invalid username.")
+                self.gui.append_server_log(
+                    f"[{SERVER_ALIAS}]: Connection attempt with invalid username `{username}` from {client_handler.client_address[0]}:{client_handler.client_address[1]}"
+                )
+                return False
             self.clients[username] = client_handler
             client_handler.send_message(f"[{SERVER_ALIAS}]: Connected successfully.")
             self.gui.append_server_log(
@@ -58,14 +64,18 @@ class Server:
         with self.clients_lock:  # Handle client removal
             if username in self.clients:
                 del self.clients[username]
-                self.gui.append_server_log(f"[{SERVER_ALIAS}]: `{username}` disconnected.")
+                self.gui.append_server_log(
+                    f"[{SERVER_ALIAS}]: `{username}` disconnected."
+                )
 
         with self.channels_lock:  # Update channel subscriptions
             for channel in self.channels:
                 if username in self.channels[channel]:
                     self.channels[channel].remove(username)
-                    self.gui.append_server_log(f"[{SERVER_ALIAS}]: `{username}` unsubscribed from `{channel}`.")
-   
+                    self.gui.append_server_log(
+                        f"[{SERVER_ALIAS}]: `{username}` unsubscribed from `{channel}`."
+                    )
+
         self.update_gui_clients_and_channels()  # Update GUI lists
 
     def subscribe_client_to_channel(self, username, channel):
@@ -99,7 +109,7 @@ class Server:
 
     def broadcast_message(self, channel, sender_username, message):
         """
-        Broadcast a message to all subscribers of a channel. 
+        Broadcast a message to all subscribers of a channel.
         Sender must be a member of that channel.
         """
         if sender_username in self.channels[channel]:
